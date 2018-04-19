@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>GIForecast</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <link rel="stylesheet" href="style.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  </head>
+  <body>
+    <div id="overlay">
+      <div id="init">
+        <div class="jumbotron background">
+          <h1>GIFORECAST!</h1>      
+        </div>
+        <p>Weather Forecast + GIPHY Magic</p>
+        <p>Enter a city below...</p>
+        <form class="js-placeForm">
+          <label>
+              <input type="text" class="js-place">
+          </label>
+          <input type="submit" value="GIF ME THE FORECAST">
+        </form>
+      </div>
+      <ul class="js-forecast">
+      </ul>
+    </div>
+    <div class="gif-bg"></div>
+    <div id="map"></div>
+    
+
+    <script>
+      $(function() {
+        var xhr = $.get("http://api.giphy.com/v1/gifs/random?api_key=dc6zaTOxFJmzC&tag=weather cat");
+        xhr.done(function(data) { 
+          $('.gif-bg').css('background-image', 'url(' + data.data.image_url + ')');
+        });
+      });
+    </script>
+
+    <script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBgo6sW5YKp0PGHLArYfHHLKRO70zr7kuw"></script>
+
+    <script type="text/javascript">
+        var googleMapsApiKey = "AIzaSyBgo6sW5YKp0PGHLArYfHHLKRO70zr7kuw";
+
+        var forecastApiKey = "c10dc9d01884918cc2c2818380204ad4";
+
+        var giphyApiKey = "lY5TNBDtiG4FRu0lJTbgW3RHkExjG68p";
+
+        function showMap(place) {
+            var geocoder = new google.maps.Geocoder();
+
+            geocoder.geocode( { 'address': place}, function(results, status) {
+                if (status == google.maps.GeocoderStatus.OK) {
+                    console.log(results);
+
+                    var mapOptions = {
+                       zoom: 8,
+                       center: results[0].geometry.location,
+                       mapTypeId: google.maps.MapTypeId.HYBRID
+                    };
+                    map = new google.maps.Map(document.getElementById("map"), mapOptions);
+
+                    var marker = new google.maps.Marker({
+                       map: map,
+                       position: results[0].geometry.location
+                    });
+
+                    showForecast(
+                        results[0].geometry.location.lat(), results[0].geometry.location.lng()
+                    );
+                } else {
+                    alert("Geocode was not successful for the following reason: " + status);
+                }
+            });
+        };
+
+        function showForecast(lat, lng) {
+            $('.js-forecast').empty();
+
+            $.ajax('https://api.forecast.io/forecast/' + forecastApiKey + '/' + lat + ',' + lng, {
+                dataType: 'jsonp'
+            }).done(function(results) {
+                console.log(results);
+                for (var n=0; n < results['daily']['data'].length; n++) {
+                    showDayForecast( results['daily']['data'][n] );
+                }
+            }).fail(function(jqXHR, textStatus) {
+                alert( textStatus );
+            });
+        };
+
+        function showDayForecast(forecast) {
+
+            var date = new Date(forecast['time'] * 1000);
+            var day = date.getDay(); // 0-6
+            var days = [
+                'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+            ];
+            var dayOfWeek = days[day];
+
+            var imageUrl = getImage(forecast['icon'], forecast['time']);
+
+            $('.js-forecast').append(
+                $('<li>').html(
+                    '<p><span class="day-of-week">' + dayOfWeek + ':</span> <span class="summary">' + forecast['summary'] + '</span></p>'
+                )
+                .addClass('js-day-'+forecast['time'] + ' day')
+            );
+        };
+
+        function getImage(iconName, time) {
+            var searchTerms = {
+                "clear-day": "bright sky",
+                "clear-night": "stars",
+                "rain": "raining",
+                "snow": "snowing",
+                "sleet": "sleet",
+                "wind": "windy",
+                "fog": "foggy",
+                "cloudy": "clouds",
+                "partly-cloudy-day": "gloomy",
+                "partly-cloudy-night": "cloudy night"
+            };
+
+            $.ajax('http://api.giphy.com/v1/gifs/search?q=' + searchTerms[iconName] + '&api_key=' + giphyApiKey
+            ).done(function(results) {
+                console.log(results);
+                var randomImage = randomItem(results['data']);
+                var url = randomImage['images']['fixed_width']['url'];
+                $('.js-day-'+time).append(
+                    $('<img>').prop('src', url)
+                );
+            }).fail(function(jqXHR, textStatus) {
+                alert( textStatus );
+            });
+        };
+
+        function randomItem(arrayName) {
+            return arrayName[Math.floor(Math.random() * arrayName.length)];
+        };
+
+        $(document).ready(function() {
+
+            $('.js-placeForm').on('submit', function(ev){
+                ev.preventDefault();
+                document.getElementById("init").style.display = "none";
+
+                if ($('.js-place').prop('value') != '') {
+                    showMap( $('.js-place').prop('value') );
+                };
+            });
+        });
+    </script>
+
+
+  </body>
+</html>
